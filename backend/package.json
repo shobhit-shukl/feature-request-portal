@@ -8,6 +8,8 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@genkit-ai/googleai": "^1.28.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
@@ -17,6 +19,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "express-validator": "^7.2.1",
+    "genkit": "^1.42.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
@@ -24,7 +27,8 @@
     "multer": "^2.3.0",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^10.0.1",
-    "resend": "^6.26.0"
+    "resend": "^6.26.0",
+    "zod": "^4.6.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

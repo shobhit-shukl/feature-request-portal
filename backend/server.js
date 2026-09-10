@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/posts/:postId/comments', commentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use('*', (req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
