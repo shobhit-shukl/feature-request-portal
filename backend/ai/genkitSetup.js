@@ -1,10 +1,12 @@
 const { genkit } = require('genkit');
-const { googleAI } = require('@genkit-ai/googleai');
+const { googleAI } = require('@genkit-ai/google-genai');
 
 // Initialize Genkit
 const ai = genkit({
-  plugins: [googleAI()],
-  model: 'googleai/gemini-1.5-flash', // Using Gemini 1.5 Flash as the default model
+  plugins: [
+    googleAI({ apiKey: process.env.GEMINI_API_KEY }),
+  ],
+  model: 'googleai/gemini-3.6-flash',
 });
 
 module.exports = { ai };

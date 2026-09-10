@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../api/axios';
 import { FaComment, FaTimes, FaPaperPlane } from 'react-icons/fa';
 
 export const ChatWidget = ({ role = 'user' }) => {
@@ -40,19 +40,9 @@ export const ChatWidget = ({ role = 'user' }) => {
     setIsLoading(true);
 
     try {
-      const endpoint = role === 'admin' ? '/api/chat/admin' : '/api/chat/user';
+      const endpoint = role === 'admin' ? '/chat/admin' : '/chat/user';
       
-      // Ensure backend URL is used. If proxy is set up in Vite, relative path works.
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${endpoint}`, 
-        { prompt: userMessage.text },
-        { 
-          // Assuming your auth tokens are in localStorage
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-          } 
-        }
-      );
+      const response = await api.post(endpoint, { prompt: userMessage.text });
 
       const botMessage = {
         id: Date.now() + 1,

@@ -29,10 +29,11 @@ const updateFeatureStatusTool = ai.defineTool(
   {
     name: 'update_feature_status',
     description: 'Updates the status of a Feature Request (Post). Use this when an admin asks to change the status of a request.',
-    schema: z.object({
+    inputSchema: z.object({
       requestId: z.string().describe('The MongoDB ObjectId of the feature request'),
       newStatus: z.enum(['Under Review', 'Planned', 'In Progress', 'Completed', 'Rejected']).describe('The new status to set'),
     }),
+    outputSchema: z.string(),
   },
   async (input) => {
     const client = await getMcpClient();
@@ -58,7 +59,8 @@ const userChatFlow = ai.defineFlow(
   },
   async (prompt) => {
     const { text } = await ai.generate({
-      prompt: `You are a helpful assistant for a feature request portal. Answer the user's query: ${prompt}`,
+      prompt: `You are a helpful assistant for a feature request portal. Answer user queries about features, statuses, and the roadmap. User query: ${prompt}`,
+      config: { maxOutputTokens: 1024 },
     });
     return text;
   }
@@ -73,8 +75,9 @@ const adminChatFlow = ai.defineFlow(
   },
   async (prompt) => {
     const { text } = await ai.generate({
-      prompt: `You are an admin assistant for a feature request portal. You have access to tools to update feature requests. Execute the user's request: ${prompt}`,
+      prompt: `You are an admin assistant for a feature request portal. You have tools to update feature request statuses. When given a request ID and status, call the update_feature_status tool immediately. Admin request: ${prompt}`,
       tools: [updateFeatureStatusTool],
+      maxTurns: 5,
     });
     return text;
   }

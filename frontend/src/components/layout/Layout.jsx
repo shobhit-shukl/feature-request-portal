@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
+import ChatWidget from '../ui/ChatWidget';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -19,6 +20,8 @@ export default function Layout({ children }) {
       <main className={`relative ${isAdminRoute ? 'w-full' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}`}>
         {children}
       </main>
+
+      <ChatWidget role={isAdminRoute ? 'admin' : 'user'} />
     </div>
   );
 }
