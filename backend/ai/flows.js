@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { ai } = require('./genkitSetup');
+const { gemini15Flash } = require('@genkit-ai/googleai');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const path = require('path');
@@ -43,7 +44,31 @@ const updateFeatureStatusTool = ai.defineTool(
     });
     
     if (result.isError) {
-      throw new Error(result.content.map(c => c.text).join('\n'));
+      return `TOOL ERROR: ${result.content.map(c => c.text).join('\n')}. You must fix this error before proceeding.`;
+    }
+    
+    return result.content.map(c => c.text).join('\n');
+  }
+);
+
+const searchFeatureRequestsTool = ai.defineTool(
+  {
+    name: 'search_feature_requests',
+    description: 'Searches for feature requests by keywords to find their IDs and current status. Use this to find the request ID before updating its status.',
+    inputSchema: z.object({
+      query: z.string().describe('Search query to find feature requests (e.g. part of the title or description)'),
+    }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    const client = await getMcpClient();
+    const result = await client.callTool({
+      name: 'search_feature_requests',
+      arguments: input,
+    });
+    
+    if (result.isError) {
+      return `TOOL ERROR: ${result.content.map(c => c.text).join('\n')}.`;
     }
     
     return result.content.map(c => c.text).join('\n');
@@ -59,7 +84,10 @@ const userChatFlow = ai.defineFlow(
   },
   async (prompt) => {
     const { text } = await ai.generate({
-      prompt: `You are a helpful assistant for a feature request portal. Answer user queries about features, statuses, and the roadmap. User query: ${prompt}`,
+      prompt: `You are a helpful assistant for a feature request portal. Answer user queries about features, statuses, and the roadmap. Use the search tool to find relevant feature requests if the user asks about specific features. User query: ${prompt}`,
+      model: gemini15Flash,
+      tools: [searchFeatureRequestsTool],
+      maxTurns: 3,
       config: { maxOutputTokens: 1024 },
     });
     return text;
@@ -75,9 +103,20 @@ const adminChatFlow = ai.defineFlow(
   },
   async (prompt) => {
     const { text } = await ai.generate({
-      prompt: `You are an admin assistant for a feature request portal. You have tools to update feature request statuses. When given a request ID and status, call the update_feature_status tool immediately. Admin request: ${prompt}`,
-      tools: [updateFeatureStatusTool],
-      maxTurns: 5,
+      prompt: `You are an intelligent and efficient Admin Assistant for a Customer Feedback portal.
+Your primary task is to help administrators search for and update feature requests using the connected MCP tools.
+
+CRITICAL RULES FOR TOOL EXECUTION (MUST FOLLOW TO AVOID LOOPS):
+1. SEARCH FIRST: If a user asks to update a feature request by its name or description, you MUST use the \`search_feature_requests\` tool first to retrieve its exact MongoDB ObjectId.
+2. ONE-TRY RULE: If \`search_feature_requests\` returns "No feature requests found", DO NOT call the tool again with a different spelling or query. Stop immediately and politely inform the user that no matching record was found.
+3. EXACT UPDATES: Use the \`update_feature_status\` tool ONLY when you have the exact MongoDB ObjectId. Do NOT guess or make up IDs. 
+4. VALID STATUSES: Ensure you only use the allowed statuses: 'Under Review', 'Planned', 'In Progress', 'Completed', or 'Rejected'. If the user provides a status outside this list, map it to the closest valid one or ask for clarification.
+5. STOP AND REPORT: Once a tool successfully completes its action (either finding a result or updating a status), DO NOT call any more tools. Immediately generate a concise, human-friendly response summarizing the action taken.
+
+Admin request: ${prompt}`,
+      model: gemini15Flash,
+      tools: [updateFeatureStatusTool, searchFeatureRequestsTool],
+      maxTurns: 3,
     });
     return text;
   }

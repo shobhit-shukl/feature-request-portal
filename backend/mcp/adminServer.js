@@ -11,7 +11,8 @@ const Post = require('../models/Post');
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      require('dotenv').config({ path: '../.env' });
+      const path = require('path');
+      require('dotenv').config({ path: path.join(__dirname, '../.env') });
     }
     await mongoose.connect(process.env.MONGO_URI);
     console.error('MCP Server connected to MongoDB');
@@ -56,6 +57,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['requestId', 'newStatus'],
         },
       },
+      {
+        name: 'search_feature_requests',
+        description: 'Searches for feature requests by keywords to find their IDs and current status',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query to find feature requests (e.g. part of the title or description)',
+            },
+          },
+          required: ['query'],
+        },
+      },
     ],
   };
 });
@@ -66,6 +81,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === 'update_feature_status') {
     const { requestId, newStatus } = args;
+
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
+      return {
+        content: [{ type: 'text', text: `Error: '${requestId}' is not a valid MongoDB ObjectId. You MUST use the search_feature_requests tool to find the correct 24-character hex ID before updating.` }],
+        isError: true,
+      };
+    }
 
     try {
       const post = await Post.findById(requestId);
@@ -90,6 +112,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error) {
       return {
         content: [{ type: 'text', text: `Error updating feature request: ${error.message}` }],
+        isError: true,
+      };
+    }
+  } else if (name === 'search_feature_requests') {
+    const { query } = args;
+
+    try {
+      // Simple text search using regex on title and description
+      const posts = await Post.find({
+        $or: [
+          { title: { $regex: query, $options: 'i' } },
+          { description: { $regex: query, $options: 'i' } }
+        ]
+      }).limit(10);
+
+      if (posts.length === 0) {
+        return {
+          content: [{ type: 'text', text: `No feature requests found matching query: "${query}"` }],
+        };
+      }
+
+      const results = posts.map(
+        (p) => `ID: ${p._id} | Title: "${p.title}" | Status: ${p.status}`
+      ).join('\n');
+
+      return {
+        content: [{ type: 'text', text: `Found ${posts.length} feature requests:\n${results}` }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Error searching feature requests: ${error.message}` }],
         isError: true,
       };
     }
