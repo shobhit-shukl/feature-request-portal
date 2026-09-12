@@ -2,10 +2,12 @@ import axios from 'axios';
 
 /**
  * Axios instance pre-configured for the backend API.
- * Uses /api prefix so Vite proxy can forward it to localhost:5000.
+ * In dev, '/api' is forwarded to localhost:5000 by the Vite proxy.
+ * In production, VITE_API_URL should point at the deployed backend
+ * (e.g. https://your-service.onrender.com/api).
  */
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true, // Required for httpOnly refresh token cookie
   headers: { 'Content-Type': 'application/json' },
 });
@@ -62,7 +64,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, { withCredentials: true });
         const newToken = data.accessToken;
         localStorage.setItem('accessToken', newToken);
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;

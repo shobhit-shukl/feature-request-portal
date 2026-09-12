@@ -16,11 +16,14 @@ const signRefreshToken = (userId) =>
 
 const verifyToken = (token, secret) => jwt.verify(token, secret);
 
+// In production the frontend (Vercel) and backend (Render) are on different
+// domains, so the cookie must be sent cross-site: that requires SameSite=None,
+// which browsers only honor when Secure is also set.
 const setRefreshCookie = (res, token) => {
   res.cookie('refreshToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
@@ -29,7 +32,7 @@ const clearRefreshCookie = (res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
   });
 };
 
