@@ -38,9 +38,20 @@ const authLimiter = rateLimit({
   message: { message: 'Too many auth attempts, please wait 15 minutes.' },
 });
 
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+// Vercel gives every deployment (production redeploys, previews, git-branch aliases)
+// its own unique *.vercel.app URL in addition to the stable one in CLIENT_URL —
+// allow all of this project's own Vercel URLs so a fresh deployment link always works.
+const VERCEL_DEPLOYMENT_PATTERN = /^https:\/\/feature-request-portal-[a-z0-9-]+\.vercel\.app$/;
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || origin === CLIENT_URL || VERCEL_DEPLOYMENT_PATTERN.test(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
