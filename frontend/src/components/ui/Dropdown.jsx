@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 
-export default function Dropdown({ value, options, onChange, className, buttonClassName }) {
+export default function Dropdown({ value, options, onChange, className, buttonClassName, align = 'right' }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -40,7 +40,11 @@ export default function Dropdown({ value, options, onChange, className, buttonCl
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-full min-w-[140px] flex flex-col rounded-xl glass-card py-1 shadow-xl animate-scale-in origin-top-right right-0 border border-white/[0.08]">
+        <div
+          className={`absolute z-50 mt-2 w-full min-w-[140px] flex flex-col rounded-xl glass-card py-1 shadow-xl animate-scale-in border border-white/[0.08] ${
+            align === 'left' ? 'origin-top-left left-0' : 'origin-top-right right-0'
+          }`}
+        >
           {options.map((option) => (
             <button
               key={option.value}

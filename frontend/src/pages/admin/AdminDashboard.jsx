@@ -166,7 +166,7 @@ function AnalyticsTab() {
 
 function RequestsTab() {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState({ page: 1, limit: 15, status: '', search: '' });
+  const [filters, setFilters] = useState({ page: 1, limit: 10, status: '', search: '' });
   const [searchInput, setSearchInput] = useState('');
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [rejectingPost, setRejectingPost] = useState(null);
@@ -396,7 +396,7 @@ function RequestsTab() {
             </p>
             <div className="flex items-center gap-2">
               <span className="text-white/30 text-xs">Rows:</span>
-              <div className="relative z-10 w-20">
+              <div className="relative z-10 w-16">
                 <Dropdown
                   value={filters.limit}
                   onChange={(val) => setFilters((f) => ({ ...f, limit: Number(val), page: 1 }))}
@@ -406,6 +406,7 @@ function RequestsTab() {
                     { value: 20, label: '20' },
                     { value: 50, label: '50' }
                   ]}
+                  align="left"
                   buttonClassName="bg-surface-900/60 border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-white/70 w-full"
                 />
               </div>

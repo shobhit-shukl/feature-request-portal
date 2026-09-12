@@ -103,7 +103,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
 });
 
 const getAllRequests = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 15, status, search } = req.query;
+  const { page = 1, limit = 10, status, search } = req.query;
 
   const pageNum  = Math.max(1, parseInt(page, 10));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
