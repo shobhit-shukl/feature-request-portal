@@ -86,10 +86,10 @@ export const ChatWidget = ({ role = 'user' }) => {
               ? 'translate-y-0 opacity-100 pointer-events-auto'
               : 'translate-y-10 opacity-0 pointer-events-none'
           }
+          /* Mobile Full Screen */
+          bottom-0 right-0 w-full h-[100dvh] rounded-none
           /* Desktop */
           sm:bottom-6 sm:right-6 sm:w-96 sm:h-[600px] sm:rounded-2xl
-          /* Mobile Full Screen */
-          bottom-0 right-0 w-full h-full sm:h-auto rounded-none
         `}
       >
         {/* Header */}
@@ -110,7 +110,7 @@ export const ChatWidget = ({ role = 'user' }) => {
         </div>
 
         {/* Message Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
           {messages.map((msg) => (
             <div
               key={msg.id}

@@ -1,6 +1,5 @@
 const { z } = require('zod');
 const { ai } = require('./genkitSetup');
-const { gemini15Flash } = require('@genkit-ai/googleai');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const path = require('path');
@@ -75,6 +74,16 @@ const searchFeatureRequestsTool = ai.defineTool(
   }
 );
 
+// Thrown by Genkit when the model/tool loop can't conclude within maxTurns.
+// We turn that into a normal chat reply instead of letting it 500 the request.
+const isTurnLimitError = (error) =>
+  error?.message?.includes('Exceeded maximum tool call iterations');
+
+// The Gemini free tier allows only a handful of requests/minute per model,
+// and each tool-calling turn is its own request, so this is easy to hit.
+const isRateLimitError = (error) =>
+  error?.message?.includes('RESOURCE_EXHAUSTED') || error?.message?.includes('429');
+
 // Standard flow for normal users (no tools attached)
 const userChatFlow = ai.defineFlow(
   {
@@ -83,14 +92,23 @@ const userChatFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (prompt) => {
-    const { text } = await ai.generate({
-      prompt: `You are a helpful assistant for a feature request portal. Answer user queries about features, statuses, and the roadmap. Use the search tool to find relevant feature requests if the user asks about specific features. User query: ${prompt}`,
-      model: gemini15Flash,
-      tools: [searchFeatureRequestsTool],
-      maxTurns: 3,
-      config: { maxOutputTokens: 1024 },
-    });
-    return text;
+    try {
+      const { text } = await ai.generate({
+        prompt: `You are a helpful assistant for a feature request portal. Answer user queries about features, statuses, and the roadmap. Use the search tool to find relevant feature requests if the user asks about specific features. User query: ${prompt}`,
+        tools: [searchFeatureRequestsTool],
+        maxTurns: 5,
+        config: { maxOutputTokens: 1024 },
+      });
+      return text;
+    } catch (error) {
+      if (isTurnLimitError(error)) {
+        return "I couldn't pin down a single matching feature request for that within my search budget. Could you give me a more specific title or keyword?";
+      }
+      if (isRateLimitError(error)) {
+        return "I'm getting rate-limited by the AI provider right now. Please wait about a minute and try again.";
+      }
+      throw error;
+    }
   }
 );
 
@@ -102,23 +120,34 @@ const adminChatFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (prompt) => {
-    const { text } = await ai.generate({
-      prompt: `You are an intelligent and efficient Admin Assistant for a Customer Feedback portal.
+    try {
+      const { text } = await ai.generate({
+        prompt: `You are an intelligent and efficient Admin Assistant for a Customer Feedback portal.
 Your primary task is to help administrators search for and update feature requests using the connected MCP tools.
 
 CRITICAL RULES FOR TOOL EXECUTION (MUST FOLLOW TO AVOID LOOPS):
 1. SEARCH FIRST: If a user asks to update a feature request by its name or description, you MUST use the \`search_feature_requests\` tool first to retrieve its exact MongoDB ObjectId.
 2. ONE-TRY RULE: If \`search_feature_requests\` returns "No feature requests found", DO NOT call the tool again with a different spelling or query. Stop immediately and politely inform the user that no matching record was found.
-3. EXACT UPDATES: Use the \`update_feature_status\` tool ONLY when you have the exact MongoDB ObjectId. Do NOT guess or make up IDs. 
-4. VALID STATUSES: Ensure you only use the allowed statuses: 'Under Review', 'Planned', 'In Progress', 'Completed', or 'Rejected'. If the user provides a status outside this list, map it to the closest valid one or ask for clarification.
-5. STOP AND REPORT: Once a tool successfully completes its action (either finding a result or updating a status), DO NOT call any more tools. Immediately generate a concise, human-friendly response summarizing the action taken.
+3. AMBIGUOUS MATCHES: If \`search_feature_requests\` returns more than one result, do NOT call it again with a refined query. Instead, either pick the single result whose title is the closest exact match, or if none is clearly the best match, stop and ask the user to clarify which one they mean (list the titles and IDs).
+4. EXACT UPDATES: Use the \`update_feature_status\` tool ONLY when you have the exact MongoDB ObjectId. Do NOT guess or make up IDs.
+5. VALID STATUSES: Ensure you only use the allowed statuses: 'Under Review', 'Planned', 'In Progress', 'Completed', or 'Rejected'. If the user provides a status outside this list, map it to the closest valid one or ask for clarification.
+6. STOP AND REPORT: Once a tool successfully completes its action (either finding a result or updating a status), DO NOT call any more tools. Immediately generate a concise, human-friendly response summarizing the action taken.
+7. BUDGET: You have at most one search call and one update call before you must respond with plain text. Don't spend calls re-searching or re-verifying.
 
 Admin request: ${prompt}`,
-      model: gemini15Flash,
-      tools: [updateFeatureStatusTool, searchFeatureRequestsTool],
-      maxTurns: 3,
-    });
-    return text;
+        tools: [updateFeatureStatusTool, searchFeatureRequestsTool],
+        maxTurns: 6,
+      });
+      return text;
+    } catch (error) {
+      if (isTurnLimitError(error)) {
+        return "I wasn't able to resolve that request to a single feature request within my allowed steps — it may be ambiguous or not found. Could you give me the exact title, or the request ID, and try again?";
+      }
+      if (isRateLimitError(error)) {
+        return "I'm getting rate-limited by the AI provider right now. Please wait about a minute and try again.";
+      }
+      throw error;
+    }
   }
 );
 
